@@ -1,0 +1,2 @@
+# PROBIT
+Estimación Probit
