@@ -1,30 +1,95 @@
 ---
-title: "Estimación Probit"
-author: "Ismael Aguedo Aguilar"
-date: "2023-11-20"
-output: html_document
+title: "Esta es la Estimación PROBIT, el cual analizaremos tanto sus proyecciones como el efecto marginal de los indicadores"
+author: "Ismael Giancarlo Aguedo Aguilar"
+date: "`r Sys.Date()`"
+output: 
+  prettydoc::html_pretty:
+    theme: leonids
+    toc: yes
 ---
 
-
+```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+```{r, include=FALSE}
+#Cargando las librerías
+  library(readxl)
+  library(aod)
+  library(ggplot2)
+  library(performance)
+  library(pROC)
+  library(dplyr)
+  library(lmtest)
+  library(mfx)
+  library(knitr)
+  library(kableExtra)
+```
+
+# Estimación del Modelo PROBIT
+
+## Datos
+
+Incluimos los datos de 32 observaciones sobre el efecto de un sistema personalizado de
+instrucción (PSI) en las calificaciones del curso:
+
+- Variable Endogena
+GRADE:(GRADE = 1 si la calificación es obtenida es A, GRADE = 0 si la calificación es obtenida es diferente de A)
+
+- Variables Exógenas:
+GPA: Promedio de notas de entrada; TUCE: Puntuación en un examen de principio del curso; PSI:(PSI = 1 si se utiliza el nuevo método, PSI = 0 si no se utiliza el nuevo método)
+
+```{r, include=FALSE}
+# Cargar los datos
+  ruta_excel <- "C:\\github\\Estimacion_Probit_Microeconometria\\instruccion.xlsx"
+  instruc <- read_excel(ruta_excel, sheet = 'Hoja1')
+  instruc$GRADE <- as.factor(instruc$GRADE)
+  instruc$PSI <- as.factor(instruc$PSI)
+# Crear y estilizar la tabla
+  tabla<-kable(instruc[1:5,], caption = "Efecto de un sistema personalizado de
+instrucción", align = "c") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), font_size = 12, full_width = FALSE) %>%
+  column_spec(column = 1:ncol(instruc), width = "10em") 
+```
+
+```{r, echo=FALSE, results='asis'}
+  tabla
+```
+
+## Estimación PROBIT de los datos:
+
+```{r, echo=FALSE, results='hide'}
+# Ajustar el modelo probit
+  fit <- glm(GRADE ~ GPA + TUCE + PSI, data = instruc, family = binomial(link = "probit"))
+```
+
+```{r, echo=FALSE, include=FALSE}
+# Resumen del modelo
+  summary(fit)
+```
+
+```{r, echo=FALSE, include=FALSE}
+# Mostrar resultados con 6 decimales
+summary_fit <- summary(fit)
+coefficients_6dec <- round(summary_fit$coefficients, 6)
+stderr_6dec <- round(summary_fit$coefficients[, "Std. Error"], 6)
+z_values_6dec <- round(summary_fit$coefficients[, "z value"], 6)
+p_values_6dec <- round(summary_fit$coefficients[, "Pr(>|z|)"], 6)
+```
+
+```{r, comment='', results='hold', echo=FALSE}
+cat("\nCoefficients:\n")
+print(coefficients_6dec)
+
+#cat("\nStandard errors:\n")
+#print(stderr_6dec)
+
+#cat("\nZ values:\n")
+#print(z_values_6dec)
+
+#cat("\nP values:\n")
+#print(p_values_6dec)
+```
+
+
 ## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
-```
-
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
