@@ -1,5 +1,5 @@
 ---
-title: "Esta es la Estimación PROBIT, el cual analizaremos tanto sus proyecciones como el efecto marginal de los indicadores"
+title: "MODELO PROBIT"
 author: "Ismael Giancarlo Aguedo Aguilar"
 date: "`r Sys.Date()`"
 output: 
@@ -56,7 +56,7 @@ instrucción", align = "c") %>%
   tabla
 ```
 
-## Estimación PROBIT de los datos:
+## Estimación de los coeficientes PROBIT de los datos:
 
 ```{r, echo=FALSE, results='hide'}
 # Ajustar el modelo probit
@@ -92,4 +92,110 @@ print(coefficients_6dec)
 ```
 
 
-## R Markdown
+### R^2 McFadden
+
+El R^2 McFadden es un pseudo R^2
+
+```{r,  include=FALSE}
+r2_mc <- r2_mcfadden(fit)
+```
+```{r, results='hold', echo=FALSE, comment=''}
+print(paste("R2 de McFadden:", r2_mc))
+```
+
+### R^2 de Conteo
+
+```{r, include=FALSE}
+# Predicciones y residuos
+predicciones <- predict(fit, type = "response")
+residuos <- residuals(fit, type = "response")
+
+# Porcentaje de errores
+pred_corr <- sum(residuos >= -0.5 & residuos <= 0.5)
+total_observaciones <- nobs(fit)
+porc_error <- ((total_observaciones - pred_corr) / total_observaciones) * 100
+cat("Porcentaje de errores en los residuos:", porc_error, "%\n")
+
+# R^2 de Conteo
+r2_conteo <- pred_corr / total_observaciones
+```
+
+```{r, comment='', echo=FALSE, results='hold'}
+cat("R2 de conteo:", r2_conteo, "\n")
+```
+
+```{r, include=FALSE}
+roc_curve <- roc(instruc$GRADE, predicciones)
+auc_value <- auc(roc_curve)
+```
+
+```{r, include=FALSE}
+# Crear el gráfico de la curva ROC usando ggroc()
+roc_plot <- ggroc(roc_curve) +
+  labs(title = "Curva ROC",
+       x = "1 - Especificidad",
+       y = "Sensibilidad") +
+  theme_gray() +
+  theme(
+    panel.grid.major = element_line(color = "gray", linetype = "dashed"),
+    panel.grid.minor = element_blank()
+  )
+```
+
+```{r, comment='', echo=FALSE, results='hold'}
+print(roc_plot)
+```
+
+```{r, comment='', echo=FALSE, results='hold'}
+cat("Área bajo la curva ROC (AUC):", auc_value, "\n")
+```
+
+### Estadístico de la razón de verosimilitud (RV)
+
+```{r,include=FALSE}
+lr_test <- lrtest(fit)
+```
+```{r, comment='', echo=FALSE, results='hold'}
+print(lr_test)
+```
+
+```{r, include=FALSE}
+# Ordenar las predicciones de menor a mayor
+predicciones_ordenadas <- sort(predicciones)
+```
+
+### Grafico de las predicciones ordenadas
+
+```{r, include=FALSE}
+# Curva de PROBIT
+plot_predprobit <- ggplot() +
+  geom_line(aes(x = seq_along(predicciones_ordenadas), y = predicciones_ordenadas), color = "red") +
+  labs(title = "Curva S de Probit",
+       x = "Observaciones",
+       y = "Probabilidad acumulativa") +
+  theme_minimal() +
+  theme(panel.grid.major = element_line(color = "azure4", linetype = "dashed"),
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "ivory2")) +
+  scale_x_continuous(expand = c(0, 0))
+```
+
+```{r, comment='', echo=FALSE, results='hold'}
+print(plot_predprobit)
+```
+
+## Efectos Marginales en PROBIT
+
+```{r, include=FALSE}
+# Calcula los efectos marginales
+efectos_marginales <- probitmfx(fit, data = instruc)
+```
+
+```{r, comment='', echo=FALSE, results='hold'}
+print(efectos_marginales)
+```
+
+
+
+
+
