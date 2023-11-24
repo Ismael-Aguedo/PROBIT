@@ -1,11 +1,8 @@
 ---
-title: "MODELO PROBIT"
+title: "Modelo Probit Microeconometria"
 author: "Ismael Giancarlo Aguedo Aguilar"
-date: "`r Sys.Date()`"
-output: 
-  prettydoc::html_pretty:
-    theme: leonids
-    toc: yes
+output:
+  rmdformats::material
 ---
 
 ```{r setup, include=FALSE}
@@ -26,9 +23,8 @@ knitr::opts_chunk$set(echo = TRUE)
   library(kableExtra)
 ```
 
-# Estimación del Modelo PROBIT
+# <span style="color: #008080;">Datos</span>
 
-## Datos
 
 Incluimos los datos de 32 observaciones sobre el efecto de un sistema personalizado de
 instrucción (PSI) en las calificaciones del curso:
@@ -46,17 +42,21 @@ GPA: Promedio de notas de entrada; TUCE: Puntuación en un examen de principio d
   instruc$GRADE <- as.factor(instruc$GRADE)
   instruc$PSI <- as.factor(instruc$PSI)
 # Crear y estilizar la tabla
-  tabla<-kable(instruc[1:5,], caption = "Efecto de un sistema personalizado de
+  tabla<-kable(instruc, caption = "Efecto de un sistema personalizado de
 instrucción", align = "c") %>%
   kable_styling(bootstrap_options = c("striped", "hover"), font_size = 12, full_width = FALSE) %>%
-  column_spec(column = 1:ncol(instruc), width = "10em") 
+  column_spec(column = 1:ncol(instruc), width = "9em") 
 ```
 
 ```{r, echo=FALSE, results='asis'}
   tabla
 ```
 
-## Estimación de los coeficientes PROBIT de los datos:
+# <span style="color: #008080;">Estimación del Modelo</span> 
+
+## <span style="color: #8FBC8B;">Estimación de los coeficientes Probit:</span> 
+
+Bien por motivos didácticos mostramos solamente los coeficientes, con el cual podemos plasmar la ecuación estimada y la probabilidad de que GRADE sea igual a 1:
 
 ```{r, echo=FALSE, results='hide'}
 # Ajustar el modelo probit
@@ -91,8 +91,42 @@ print(coefficients_6dec)
 #print(p_values_6dec)
 ```
 
+# <span style="color: #008080;">Ecuación Probit</span>
 
-### R^2 McFadden
+$$\scriptsize{I_{GRADE}=\beta_{1}+\beta_{2}\cdot GPA+\beta_{3}\cdot TUCE+\beta_{4}\cdot PSI}$$
+donde $I_{GRADE}$ representa el indicador binomial de GRADE.
+
+## <span style="color: #8FBC8B;">Ecuación del pronostico:</span>
+
+$$\scriptsize{P(GRADE=1)=1-\Phi-(\beta_{1}+\beta_{2}\cdot GPA+\beta_{3}\cdot TUCE+\beta_{4}\cdot PSI)}$$
+remplazando con los coeficientes obtenidos tenemos que:
+
+$$\scriptsize{P(GRADE=1) = 1 - \Phi\left(-(-7.452313 + 1.625812 \cdot GPA + 0.051728 \cdot TUCE + 1.426331 \cdot PSI)\right)}$$
+Evidentemente para lograr obtener la probabilidad acumulada de que (GRADE=1), necesitamos los valores de las variables que en este caso no los tenemos. Si tuviéramos los valores y sabiendo que una muestra de datos lo suficientemente grande tiende a una distribución normal en Probit, podríamos determinar mediante la tabla de distribución normal acumulada dicha probabilidad.
+
+A continuación muestro un grafico de ejemplo de lo que seria la probabilidad acumulada, el area sombreada:
+
+
+
+```{r, fig.cap="Distribución Normal Acumulativa", echo=FALSE, message=FALSE, warning=FALSE}
+# Definir los parámetros de la distribución normal
+mu <- 1000
+sigma <- 50
+# Límite inferior y superior
+lb <- mu - 3 * sigma  # Límite inferior (3 desviaciones estándar por debajo de la media)
+ub <- 1010  # Límite superior
+# Crear una rejilla de valores x
+x <- seq(lb, mu + 3 * sigma, length = 100)
+y <- dnorm(x, mu, sigma)  # Densidad
+# Crear el gráfico usando plot
+plot(x, y, type = "l", lwd = 2, col = "blue", ylab = "Densidad", xlab = "Peso")
+abline(v = ub) 
+# Sombra del área hasta la línea vertical
+polygon(c(lb, x[x <= ub], ub), c(0, y[x <= ub], 0), col = rgb(0, 0, 1, alpha = 0.5))
+```
+
+
+# <span style="color: #008080;">R^2 McFadden</span>
 
 El R^2 McFadden es un pseudo R^2
 
