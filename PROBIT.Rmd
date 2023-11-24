@@ -21,6 +21,8 @@ knitr::opts_chunk$set(echo = TRUE)
   library(mfx)
   library(knitr)
   library(kableExtra)
+  library(MASS)
+  library(brglm2)
 ```
 
 # <span style="color: #008080;">Datos</span>
@@ -54,19 +56,23 @@ instrucción", align = "c") %>%
 
 # <span style="color: #008080;">Estimación del Modelo</span> 
 
-## <span style="color: #8FBC8B;">Estimación de los coeficientes Probit:</span> 
+## <span style="color: #8FBC8B;">Estimación Probit:</span> 
 
 Bien por motivos didácticos mostramos solamente los coeficientes, con el cual podemos plasmar la ecuación estimada y la probabilidad de que GRADE sea igual a 1:
+
 
 ```{r, echo=FALSE, results='hide'}
 # Ajustar el modelo probit
   fit <- glm(GRADE ~ GPA + TUCE + PSI, data = instruc, family = binomial(link = "probit"))
 ```
 
-```{r, echo=FALSE, include=FALSE}
-# Resumen del modelo
+```{r, comment='', echo=FALSE, results='hold'}
   summary(fit)
 ```
+
+Bien los errores se diferencian por décimas con estimaciones de otros programas, esto se debe al numero de iteraciones que usa cada algoritmo, pero en síntesis no afecta el análisis.
+
+## <span style="color: #8FBC8B;">Coeficientes Probit:</span>
 
 ```{r, echo=FALSE, include=FALSE}
 # Mostrar resultados con 6 decimales
@@ -104,7 +110,7 @@ remplazando con los coeficientes obtenidos tenemos que:
 $$\scriptsize{P(GRADE=1) = 1 - \Phi\left(-(-7.452313 + 1.625812 \cdot GPA + 0.051728 \cdot TUCE + 1.426331 \cdot PSI)\right)}$$
 Evidentemente para lograr obtener la probabilidad acumulada de que (GRADE=1), necesitamos los valores de las variables que en este caso no los tenemos. Si tuviéramos los valores y sabiendo que una muestra de datos lo suficientemente grande tiende a una distribución normal en Probit, podríamos determinar mediante la tabla de distribución normal acumulada dicha probabilidad.
 
-A continuación muestro un grafico de ejemplo de lo que seria la probabilidad acumulada, el area sombreada:
+A continuación muestro un gráfico de ejemplo de lo que seria la probabilidad acumulada, el área sombreada:
 
 
 
@@ -128,7 +134,7 @@ polygon(c(lb, x[x <= ub], ub), c(0, y[x <= ub], 0), col = rgb(0, 0, 1, alpha = 0
 
 # <span style="color: #008080;">R^2 McFadden</span>
 
-El R^2 McFadden es un pseudo R^2
+El R^2 McFadden es un pseudo R^2, se usa este estadístico por que el R^2 que se usa en modelos con MCO no resulta confiable en estos modelos. 
 
 ```{r,  include=FALSE}
 r2_mc <- r2_mcfadden(fit)
@@ -137,13 +143,41 @@ r2_mc <- r2_mcfadden(fit)
 print(paste("R2 de McFadden:", r2_mc))
 ```
 
-### R^2 de Conteo
+En nuestro caso, el valor de McFadden’s R^2 es 0.377, lo que indica que el modelo Probit explica el 37.7% de la variación de la variable respuesta, en comparación con el modelo nulo. Este valor se considera moderado, pero no hay un criterio único para interpretarlo. Algunos autores sugieren que valores entre 0.2 y 0.4 son EXCELENTES, mientras que otros proponen medidas alternativas.
+
+# <span style="color: #008080;">Cuenta R^2</span>
+
+Entre los contrastes que miden la bondad de ajuste de estos modelos se encuentra el porcentaje de aciertos estimados ó “Cuenta R^2” que se define como:
+
+$$\text{Cuenta }R^{2}=\frac{\text{numero de predicciones correctas}}{\text{numero total de observaciones}}$$
+El valor del R2 de conteo en probit varía entre 0 y 1, siendo más cercano a 1 cuanto mejor sea el ajuste del modelo. Para hallar estas predicciones seguimos los siguientes pasos:
+
+## <span style="color: #8FBC8B;">Predicciones y residuos:</span>
 
 ```{r, include=FALSE}
 # Predicciones y residuos
 predicciones <- predict(fit, type = "response")
 residuos <- residuals(fit, type = "response")
+```
 
+```{r, include=FALSE}
+# Crear un dataframe con predicciones, residuos y el grado inicial
+resultados <- data.frame(GRADE = instruc$GRADE, Predicciones = predicciones, Residuos = residuos)
+# Crear y estilizar la tabla
+  tabla2<-kable(resultados, caption = "ACTUAL, FITTED Y RESIDUAL", align = "c") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), font_size = 12, full_width = FALSE) %>%
+  column_spec(column = 1:ncol(resultados), width = "9em") 
+```
+
+```{r, echo=FALSE, results='asis'}
+  tabla2
+```
+- Como la endógena en el modelo Probit toma el valor de 1 o de 0, si la probabilidad pronosticada es mayor que 0.5, se clasifica como si fuese 1, pero si es menor que -0.5, se considera 0. 
+- Una predicción se considera correcta si el valor del error estimado $\mu_{i}$ es:
+$$-0.5\leq\mu_{i}\leq0.5$$
+de esa forma se obtiene el número de predicciones correctas y se calcula Cuenta R^2
+
+```{r, include=FALSE}
 # Porcentaje de errores
 pred_corr <- sum(residuos >= -0.5 & residuos <= 0.5)
 total_observaciones <- nobs(fit)
@@ -153,10 +187,14 @@ cat("Porcentaje de errores en los residuos:", porc_error, "%\n")
 # R^2 de Conteo
 r2_conteo <- pred_corr / total_observaciones
 ```
-
+- Entonces la Cuenta R^2 sera: 
 ```{r, comment='', echo=FALSE, results='hold'}
 cat("R2 de conteo:", r2_conteo, "\n")
 ```
+
+## <span style="color: #8FBC8B;">Curva ROC:</span>
+
+Aprovecahando estos resultados podemos graficar la Curva ROC y determinar el area bajo la Curva. La Curva ROC es una herramienta comúnmente utilizada para evaluar el rendimiento de un modelo de clasificación binaria a diferentes umbrales de probabilidad de clasificación. Muestra la tasa de verdaderos positivos (sensibilidad) frente a la tasa de falsos positivos (1 - especificidad) a medida que se varía el umbral de clasificación.
 
 ```{r, include=FALSE}
 roc_curve <- roc(instruc$GRADE, predicciones)
@@ -183,8 +221,10 @@ print(roc_plot)
 ```{r, comment='', echo=FALSE, results='hold'}
 cat("Área bajo la curva ROC (AUC):", auc_value, "\n")
 ```
+Un valor de 0.8874459 para el área bajo la curva (AUC) sugiere que el modelo tiene una buena capacidad predictiva.
 
-### Estadístico de la razón de verosimilitud (RV)
+
+# <span style="color: #008080;">Estadístico de la razón de verosimilitud (RV)</span> 
 
 ```{r,include=FALSE}
 lr_test <- lrtest(fit)
@@ -193,12 +233,23 @@ lr_test <- lrtest(fit)
 print(lr_test)
 ```
 
+El Likelihood Ratio Test compara dos modelos: uno que incluye las covariables GPA, TUCE y PSI (Modelo 1) y otro que solo incluye la constante (Modelo 2). La prueba determina si agregar covariables mejora significativamente la capacidad del modelo.
+
+- Hipótesis Nula (H0): El Modelo 1 (con covariables GPA, TUCE y PSI) no es significativamente mejor que el Modelo 2 (sin covariables, solo constante) para explicar la variabilidad en la variable de respuesta GRADE.
+
+  - Se rechaza la H0.
+  - El Modelo 1 es significativamente mejor que el Modelo 2.
+  - Las covariables GPA, TUCE y PSI contribuyen significativamente a la explicación de la variabilidad en GRADE.
+
+
+# <span style="color: #008080;">Grafico del modelo Probit</span> 
+
+Ordeno las predicciones y luego creo el gráfico de la Curva de Probit de esa manera, se construye lo que se conoce como la "Curva S de Probit" o simplemente la función de distribución acumulativa (CDF) de las predicciones del modelo probit.
+
 ```{r, include=FALSE}
 # Ordenar las predicciones de menor a mayor
 predicciones_ordenadas <- sort(predicciones)
 ```
-
-### Grafico de las predicciones ordenadas
 
 ```{r, include=FALSE}
 # Curva de PROBIT
@@ -218,7 +269,9 @@ plot_predprobit <- ggplot() +
 print(plot_predprobit)
 ```
 
-## Efectos Marginales en PROBIT
+La Curva S de Probit proporciona una representación visual de cómo cambia la probabilidad acumulativa a medida que te desplazas a través de las predicciones ordenadas del modelo probit. Es una herramienta útil para comprender la distribución acumulativa de las probabilidades pronosticadas.
+
+# <span style="color: #008080;">Efectos Marginales en Probit</span> 
 
 ```{r, include=FALSE}
 # Calcula los efectos marginales
@@ -229,6 +282,13 @@ efectos_marginales <- probitmfx(fit, data = instruc)
 print(efectos_marginales)
 ```
 
+- GPA: Si tu promedio de notas de entrada (GPA) aumenta en una unidad, es más probable que obtengas una calificación A (GRADE = 1), y este aumento es estadísticamente significativo.
+
+- TUCE: Cambiar tu puntuación en un examen de inicio de curso (TUCE) en una unidad no tiene un efecto claro y significativo en la probabilidad de obtener una calificación A (GRADE = 1).
+
+- PSI1: Si utilizas el nuevo método de instrucción (PSI = 1), es más probable que obtengas una calificación A (GRADE = 1) en comparación con no utilizar el nuevo método (PSI = 0), y este cambio es estadísticamente significativo.
+
+En resumen, el desempeño académico previo (GPA) y la adopción del nuevo método de instrucción (PSI1) están relacionados con tus probabilidades de obtener una calificación A (GRADE = 1) en el modelo Probit.
 
 
 
